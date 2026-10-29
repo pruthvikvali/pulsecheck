@@ -9,6 +9,7 @@ import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
+from mangum import Mangum
 
 from app.ai_analysis import analyze_incident
 from app.database import (
@@ -17,9 +18,26 @@ from app.database import (
     save_incident,
 )
 
-# Load local configuration before handling requests.
-# On Lambda, environment variables are configured in AWS.
+# Load local configuration. On Lambda, use environment variables.
 load_dotenv()
+
+
+def verify_api_key(x_api_key: str | None):
+    expected_api_key = os.getenv("PULSECHECK_API_KEY")
+
+    if not expected_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="API authentication is not configured.",
+        )
+
+    if not x_api_key or not secrets.compare_digest(
+        x_api_key, expected_api_key
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing API key.",
+        )
 
 
 @asynccontextmanager
@@ -53,7 +71,11 @@ def health_check():
 
 
 @app.get("/monitor/github")
-def check_github():
+def check_github(
+    x_api_key: str | None = Header(default=None),
+):
+    verify_api_key(x_api_key)
+
     target_url = "https://api.github.com/"
     started_at = perf_counter()
     http_status = None
@@ -97,7 +119,11 @@ def check_github():
 
 
 @app.get("/incidents")
-def incident_history():
+def incident_history(
+    x_api_key: str | None = Header(default=None),
+):
+    verify_api_key(x_api_key)
+
     return {
         "incidents": get_recent_incidents(),
     }
@@ -116,21 +142,7 @@ def analyze_incident_endpoint(
     incident: IncidentForAnalysis,
     x_api_key: str | None = Header(default=None),
 ):
-    expected_api_key = os.getenv("PULSECHECK_API_KEY")
-
-    if not expected_api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="API authentication is not configured.",
-        )
-
-    if not x_api_key or not secrets.compare_digest(
-        x_api_key, expected_api_key
-    ):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or missing API key.",
-        )
+    verify_api_key(x_api_key)
 
     try:
         analysis = analyze_incident(incident)
@@ -147,7 +159,7 @@ def analyze_incident_endpoint(
         ) from error
 
     except Exception as error:
-        # Keep provider details in the server logs, not the API response.
+        # Keep provider details in server logs, not the API response.
         print(f"Incident analysis failed: {error}")
 
         raise HTTPException(
@@ -155,7 +167,5 @@ def analyze_incident_endpoint(
             detail="AI analysis failed. Check the server logs.",
         ) from error
 
-
-from mangum import Mangum
 
 handler = Mangum(app)
