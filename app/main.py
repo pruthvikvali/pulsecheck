@@ -133,3 +133,7 @@ def analyze_incident_endpoint(incident: IncidentForAnalysis):
             status_code=502,
             detail="AI analysis failed. Check the server terminal.",
         ) from error
+        
+from mangum import Mangum
+
+handler = Mangum(app)
