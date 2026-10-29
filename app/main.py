@@ -1,11 +1,13 @@
 
+import os
+import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from time import perf_counter
 
 import requests
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from app.ai_analysis import analyze_incident
@@ -16,6 +18,7 @@ from app.database import (
 )
 
 # Load local configuration before handling requests.
+# On Lambda, environment variables are configured in AWS.
 load_dotenv()
 
 
@@ -59,7 +62,6 @@ def check_github():
     try:
         response = requests.get(target_url, timeout=5)
         http_status = response.status_code
-
         status = "up" if response.ok else "down"
 
         if status == "down":
@@ -110,7 +112,26 @@ class IncidentForAnalysis(BaseModel):
 
 
 @app.post("/analyze-incident")
-def analyze_incident_endpoint(incident: IncidentForAnalysis):
+def analyze_incident_endpoint(
+    incident: IncidentForAnalysis,
+    x_api_key: str | None = Header(default=None),
+):
+    expected_api_key = os.getenv("PULSECHECK_API_KEY")
+
+    if not expected_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="API authentication is not configured.",
+        )
+
+    if not x_api_key or not secrets.compare_digest(
+        x_api_key, expected_api_key
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing API key.",
+        )
+
     try:
         analysis = analyze_incident(incident)
 
@@ -131,9 +152,10 @@ def analyze_incident_endpoint(incident: IncidentForAnalysis):
 
         raise HTTPException(
             status_code=502,
-            detail="AI analysis failed. Check the server terminal.",
+            detail="AI analysis failed. Check the server logs.",
         ) from error
-        
+
+
 from mangum import Mangum
 
 handler = Mangum(app)
