@@ -3,392 +3,812 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b1120">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080f1e">
+  <meta name="description" content="PulseCheck API health monitoring and incident investigation dashboard.">
   <title>PulseCheck — API Monitoring</title>
+
+  <!-- Custom favicon: no image file required -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230d1b32'/%3E%3Cpath d='M8 34h12l7-16 11 29 7-13h11' fill='none' stroke='%2360a5fa' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
   <style>
     :root {
-      --bg: #0b1120;
-      --sidebar: #0d1627;
-      --panel: #111c30;
-      --border: #263650;
-      --text: #e8eef8;
-      --muted: #8ea2bf;
+      color-scheme: dark;
+      --bg: #080f1e;
+      --sidebar: #0c1729;
+      --panel: #101d32;
+      --panel-light: #14243c;
+      --border: #243650;
+      --text: #edf4ff;
+      --muted: #8fa8c9;
       --blue: #60a5fa;
+      --blue-soft: #203957;
       --green: #34d399;
       --red: #fb7185;
       --yellow: #fbbf24;
+      --radius: 18px;
     }
 
     * { box-sizing: border-box; }
 
     body {
       margin: 0;
-      color: var(--text);
+      min-height: 100vh;
       background: var(--bg);
-      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-size: 14px;
     }
 
-    button { font: inherit; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
 
-    .app { display: flex; min-height: 100vh; }
+    button:focus-visible, input:focus-visible, a:focus-visible {
+      outline: 2px solid var(--blue);
+      outline-offset: 3px;
+    }
 
-    aside {
-      width: 230px;
-      flex-shrink: 0;
-      padding: 28px 18px;
+    .app { min-height: 100vh; }
+
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      width: 254px;
+      padding: 28px 17px;
       background: var(--sidebar);
       border-right: 1px solid var(--border);
     }
 
     .brand {
-      font-size: 25px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 0 12px;
+      margin-bottom: 43px;
+      color: var(--text);
+      font-size: 24px;
       font-weight: 800;
       letter-spacing: -1.2px;
-      margin: 0 8px 45px;
     }
 
-    .brand span { color: var(--blue); }
+    .brand-mark {
+      display: grid;
+      width: 39px;
+      height: 39px;
+      place-items: center;
+      border: 1px solid #31517a;
+      border-radius: 12px;
+      background: #162b47;
+      color: var(--blue);
+    }
+
+    .brand-name span { color: var(--blue); }
 
     .nav-label {
-      margin: 25px 10px 12px;
-      color: var(--muted);
+      padding: 0 13px;
+      margin: 0 0 12px;
+      color: #7089aa;
       font-size: 11px;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 1.7px;
     }
 
-    .nav-link {
-      display: block;
+    .nav-group { margin-bottom: 29px; }
+
+    .nav-item {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      gap: 13px;
+      padding: 13px 14px;
+      margin-bottom: 5px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: transparent;
+      color: #a7bdd9;
+      text-align: left;
+      transition: background .18s, color .18s;
+    }
+
+    .nav-item:hover, .nav-item.active {
+      background: var(--blue-soft);
+      color: #dcecff;
+    }
+
+    .nav-item.active { border-color: #294565; }
+
+    .nav-icon {
+      display: grid;
+      width: 21px;
+      place-items: center;
+      color: var(--blue);
+      font-size: 18px;
+    }
+
+    .sidebar-bottom {
+      margin-top: auto;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #101e33;
+    }
+
+    .connection {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-weight: 650;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 12px #34d39955;
+    }
+
+    .sidebar-bottom p {
+      margin: 0;
       color: var(--muted);
-      text-decoration: none;
-      font-size: 14px;
-      padding: 13px 12px;
-      border-radius: 9px;
-      margin: 5px 0;
+      font-size: 12px;
+      line-height: 1.6;
     }
 
-    .nav-link.active {
-      background: #1d3150;
-      color: #bfdbfe;
+    .main {
+      min-width: 0;
+      margin-left: 254px;
+      padding: 30px 34px 48px;
     }
-
-    main { flex: 1; min-width: 0; padding: 32px; }
 
     .topbar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 18px;
-      margin-bottom: 30px;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .eyebrow {
+      margin-bottom: 7px;
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
     }
 
     h1 {
-      font-size: 29px;
-      letter-spacing: -.8px;
-      margin: 0 0 9px;
+      margin: 0;
+      font-size: clamp(25px, 3vw, 34px);
+      font-weight: 780;
+      letter-spacing: -1.2px;
     }
 
-    h2 { font-size: 16px; margin: 0; }
-    h3 { font-size: 15px; margin: 0; }
-
-    .subtitle, .muted { color: var(--muted); }
-    .subtitle { font-size: 14px; line-height: 1.6; }
-
-    .button {
-      border: 1px solid transparent;
-      background: var(--blue);
-      color: #071426;
-      padding: 11px 16px;
-      border-radius: 9px;
-      cursor: pointer;
-      font-weight: 700;
-      font-size: 13px;
-      transition: opacity .2s, transform .2s;
+    .subtitle {
+      margin: 9px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
     }
 
-    .button:hover { transform: translateY(-1px); }
-    .button:disabled { opacity: .55; cursor: wait; transform: none; }
-
-    .button.secondary {
-      color: var(--text);
-      background: #1a2940;
-      border-color: var(--border);
-    }
-
-    .button.small { padding: 8px 11px; font-size: 12px; }
-
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 15px;
-      margin-bottom: 23px;
-    }
-
-    .card, .panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-    }
-
-    .card { padding: 21px; min-width: 0; }
-    .card-label { color: var(--muted); font-size: 13px; }
-
-    .metric {
-      font-size: 29px;
-      font-weight: 800;
-      letter-spacing: -.8px;
-      margin: 15px 0 9px;
-      overflow-wrap: anywhere;
-    }
-
-    .hint { font-size: 12px; color: var(--muted); }
-
-    .green { color: var(--green); }
-    .red { color: var(--red); }
-    .yellow { color: var(--yellow); }
-
-    .panel { padding: 22px; margin-bottom: 22px; }
-
-    .panel-heading {
+    .top-actions {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       gap: 12px;
-      margin-bottom: 20px;
     }
 
-    .pill {
+    .system-pill, .status-pill {
       display: inline-flex;
       align-items: center;
-      gap: 7px;
-      border-radius: 30px;
-      padding: 6px 10px;
-      background: #173c32;
+      gap: 8px;
+      padding: 9px 12px;
+      border: 1px solid #205443;
+      border-radius: 999px;
+      background: #103127;
       color: var(--green);
-      font-size: 11px;
+      font-size: 12px;
+      font-weight: 650;
       white-space: nowrap;
     }
 
-    .pill.down { background: #4a202b; color: var(--red); }
-    .pill.waiting { background: #3a3020; color: var(--yellow); }
+    .button {
+      display: inline-flex;
+      min-height: 43px;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      padding: 0 16px;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      background: var(--blue);
+      color: #081426;
+      font-weight: 750;
+      transition: transform .15s, opacity .15s, background .15s;
+    }
 
-    .service-row {
+    .button:hover { background: #83b9ff; }
+    .button:active { transform: translateY(1px); }
+    .button:disabled { cursor: wait; opacity: .6; }
+
+    .button.secondary {
+      border-color: var(--border);
+      background: #14243b;
+      color: #dceaff;
+    }
+
+    .button.secondary:hover { background: #1a304d; }
+
+    .button.small {
+      min-height: 34px;
+      padding: 0 11px;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 17px;
+      margin-bottom: 19px;
+    }
+
+    .metric {
+      min-width: 0;
+      padding: 21px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, #122038, #0f1a2e);
+    }
+
+    .metric-top {
       display: flex;
       align-items: center;
-      gap: 13px;
-      padding: 16px 0;
-      border-top: 1px solid var(--border);
-    }
-
-    .service-icon {
-      width: 42px;
-      height: 42px;
-      flex-shrink: 0;
-      display: grid;
-      place-items: center;
-      border-radius: 11px;
-      background: #1c2d47;
-      color: var(--blue);
-      font-weight: 800;
-    }
-
-    .service-info { flex: 1; min-width: 0; }
-    .service-name { font-size: 14px; font-weight: 700; }
-
-    .service-url {
-      margin-top: 5px;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 23px;
+      color: var(--muted);
       font-size: 12px;
-      color: var(--muted);
-      overflow-wrap: anywhere;
     }
 
-    .service-right { text-align: right; }
-    .status { font-size: 12px; font-weight: 700; }
-    .response { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .metric-icon {
+      display: grid;
+      width: 35px;
+      height: 35px;
+      place-items: center;
+      border: 1px solid #2c4566;
+      border-radius: 11px;
+      background: #1a304e;
+      color: var(--blue);
+      font-size: 17px;
+    }
 
-    .message {
+    .metric-value {
+      overflow-wrap: anywhere;
+      font-size: clamp(23px, 2.2vw, 31px);
+      font-weight: 800;
+      letter-spacing: -1px;
+    }
+
+    .metric-value.healthy { color: var(--green); }
+    .metric-value.down { color: var(--red); }
+
+    .metric-caption {
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(270px, .9fr);
+      gap: 19px;
+      margin-bottom: 19px;
+    }
+
+    .panel {
+      min-width: 0;
+      padding: 23px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 21px;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 750;
+      letter-spacing: -.3px;
+    }
+
+    .panel-subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      min-height: 175px;
+    }
+
+    #responseChart {
+      display: block;
+      width: 100%;
+      height: 185px;
+      overflow: visible;
+    }
+
+    .chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 17px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .legend-item { display: flex; align-items: center; gap: 7px; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
+    .legend-dot.red { background: var(--red); }
+
+    .service-list { display: grid; gap: 11px; }
+
+    .service {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px;
+      border: 1px solid #233650;
+      border-radius: 13px;
+      background: #122139;
+    }
+
+    .service-logo {
+      display: grid;
+      width: 43px;
+      height: 43px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid #2d4668;
+      border-radius: 12px;
+      background: #1a304d;
+      color: var(--blue);
       font-size: 13px;
-      color: var(--muted);
-      line-height: 1.6;
-      margin-top: 13px;
-      overflow-wrap: anywhere;
+      font-weight: 850;
     }
 
-    .table-wrap { overflow-x: auto; }
+    .service-info { min-width: 0; flex: 1; }
+    .service-name { font-weight: 700; }
+    .service-url {
+      overflow: hidden;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .service-status {
+      flex: 0 0 auto;
+      text-align: right;
+    }
+
+    .status-text { font-size: 12px; font-weight: 750; }
+    .status-text.up { color: var(--green); }
+    .status-text.down { color: var(--red); }
+    .service-time { margin-top: 5px; color: var(--muted); font-size: 11px; }
+
+    .service-footnote {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.7;
+    }
+
+    .incident-panel { margin-bottom: 19px; }
+
+    .table-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .search {
+      width: 220px;
+      max-width: 100%;
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: #0b1628;
+      color: var(--text);
+    }
+
+    .table-wrap { width: 100%; overflow-x: auto; }
 
     table {
       width: 100%;
       border-collapse: collapse;
       text-align: left;
+      white-space: nowrap;
     }
 
     th {
-      color: var(--muted);
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .7px;
-      font-weight: 600;
-    }
-
-    th, td {
-      padding: 14px 12px;
+      padding: 13px 12px;
       border-bottom: 1px solid var(--border);
+      color: #829cbe;
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    td {
+      padding: 15px 12px;
+      border-bottom: 1px solid #1e3048;
+      color: #d7e5f7;
       font-size: 12px;
-      vertical-align: middle;
     }
 
-    td { color: #d3ddec; }
-    .empty { color: var(--muted); text-align: center; padding: 28px; }
+    tbody tr:hover { background: #14243b; }
+    tbody tr:last-child td { border-bottom: none; }
 
-    .analysis-panel {
-      display: none;
-      border-color: #36547a;
-      scroll-margin-top: 20px;
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 9px;
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 750;
     }
 
-    .analysis-panel.visible { display: block; }
+    .badge.up { background: #10372d; color: var(--green); }
+    .badge.down { background: #401d2b; color: var(--red); }
+    .badge.unknown { background: #352c19; color: var(--yellow); }
 
-    .analysis-content {
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      line-height: 1.8;
-      font-size: 13px;
-      color: #dbe7f8;
-      margin-top: 16px;
+    .link-button {
+      padding: 5px 0;
+      border: 0;
+      background: transparent;
+      color: var(--blue);
+      font-weight: 700;
     }
 
-    .analysis-loading { color: var(--blue); }
+    .link-button:hover { color: #a7d0ff; }
 
-    .footer {
+    .empty {
+      padding: 35px 15px;
       color: var(--muted);
       text-align: center;
+      line-height: 1.7;
+    }
+
+    .investigation {
+      margin-bottom: 19px;
+      border-color: #31517a;
+      background:
+        radial-gradient(ellipse at 100% 0%, #1d3c6250, transparent 55%),
+        var(--panel);
+    }
+
+    .investigation-heading {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ai-icon {
+      display: grid;
+      width: 43px;
+      height: 43px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid #315b89;
+      border-radius: 13px;
+      background: #193759;
+      color: #93c5fd;
+      font-size: 20px;
+    }
+
+    .analysis-output {
+      margin-top: 18px;
+      padding: 17px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #0b1628;
+      color: #c9d9ee;
+      font-size: 13px;
+      line-height: 1.8;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    .analysis-output:empty { display: none; }
+
+    .analysis-label {
+      margin-bottom: 8px;
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.3px;
+      text-transform: uppercase;
+    }
+
+    .notice {
+      margin-bottom: 15px;
+      padding: 12px 15px;
+      border: 1px solid #6a5124;
+      border-radius: 10px;
+      background: #2d2515;
+      color: #f8d88a;
       font-size: 12px;
-      padding: 10px;
+      line-height: 1.7;
     }
 
-    @media (max-width: 1100px) {
-      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      aside { width: 190px; }
-      main { padding: 24px; }
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 20;
+      max-width: min(420px, calc(100vw - 44px));
+      padding: 14px 18px;
+      border: 1px solid #31517a;
+      border-radius: 12px;
+      background: #152844;
+      color: var(--text);
+      box-shadow: 0 12px 35px #0005;
+      line-height: 1.5;
     }
 
-    @media (max-width: 680px) {
-      .app { display: block; }
-      aside {
+    .toast:empty { display: none; }
+
+    .footer {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 5px 2px;
+      color: #6e86a7;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 1150px) {
+      .sidebar { width: 218px; }
+      .main { margin-left: 218px; padding: 25px 22px 40px; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .content-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    @media (max-width: 720px) {
+      .sidebar {
+        position: sticky;
+        inset: 0 0 auto;
         width: 100%;
-        padding: 17px;
-        border-right: 0;
+        height: auto;
+        padding: 12px 14px;
+        border-right: none;
         border-bottom: 1px solid var(--border);
       }
-      .brand { margin: 0; }
-      aside .nav-label { display: none; }
-      aside .nav-link {
-        display: inline-block;
-        padding: 9px;
-        margin: 8px 4px 0 0;
+
+      .brand { margin: 0 0 12px; font-size: 21px; }
+      .brand-mark { width: 34px; height: 34px; }
+      .nav-label, .sidebar-bottom { display: none; }
+      .nav-group { display: flex; gap: 5px; margin: 0; overflow-x: auto; }
+      .nav-item { width: auto; flex: 0 0 auto; padding: 10px 11px; font-size: 12px; }
+      .nav-icon { font-size: 15px; }
+      .main { margin-left: 0; padding: 22px 14px 32px; }
+      .topbar { align-items: flex-start; flex-direction: column; margin-bottom: 23px; }
+      .top-actions { width: 100%; flex-wrap: wrap; }
+      .metrics { gap: 10px; }
+      .metric { padding: 15px; }
+      .metric-top { align-items: flex-start; margin-bottom: 15px; }
+      .metric-icon { width: 30px; height: 30px; }
+      .panel { padding: 16px; }
+      .panel-header { flex-direction: column; }
+      .table-toolbar { width: 100%; }
+      .search { width: 100%; }
+      .content-grid { gap: 13px; }
+    }
+
+    @media (max-width: 390px) {
+      .metrics { grid-template-columns: 1fr; }
+      .metric { padding: 18px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
       }
-      main { padding: 20px 13px; }
-      h1 { font-size: 24px; }
-      .topbar { align-items: flex-start; }
-      .cards { gap: 10px; }
-      .card { padding: 14px; }
-      .metric { font-size: 24px; }
-      .panel { padding: 15px; }
-      .service-row { gap: 9px; }
     }
   </style>
 </head>
+
 <body>
 <div class="app">
-  <aside>
-    <div class="brand">Pulse<span>Check</span></div>
-    <div class="nav-label">Workspace</div>
-    <a class="nav-link active" href="#overview">◈ &nbsp; Overview</a>
-    <a class="nav-link" href="#services">◎ &nbsp; Services</a>
-    <a class="nav-link" href="#incidents">▤ &nbsp; Incidents</a>
-    <div class="nav-label">Monitoring</div>
-    <a class="nav-link" href="#incidents">↗ &nbsp; Investigations</a>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="25" height="25" viewBox="0 0 32 32" fill="none">
+          <path d="M3 17h7l4-10 6 19 4-9h5"
+            stroke="currentColor" stroke-width="2.8"
+            stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="brand-name">Pulse<span>Check</span></div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">WORKSPACE</div>
+      <button class="nav-item active" data-view="overview">
+        <span class="nav-icon">◈</span> Overview
+      </button>
+      <button class="nav-item" data-view="services">
+        <span class="nav-icon">◎</span> Services
+      </button>
+      <button class="nav-item" data-view="incidents">
+        <span class="nav-icon">▤</span> Incidents
+      </button>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">MONITORING</div>
+      <button class="nav-item" data-view="investigations">
+        <span class="nav-icon">✳</span> Investigations
+      </button>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="connection">
+        <span class="dot"></span>
+        <span id="connectionText">Connecting...</span>
+      </div>
+      <p id="connectionDescription">Checking the local PulseCheck API.</p>
+    </div>
   </aside>
 
-  <main>
-    <header class="topbar" id="overview">
+  <main class="main">
+    <header class="topbar">
       <div>
-        <h1>Monitoring overview</h1>
-        <div class="subtitle">
+        <div class="eyebrow">MONITORING WORKSPACE</div>
+        <h1 id="pageTitle">Monitoring overview</h1>
+        <p class="subtitle" id="pageSubtitle">
           Track API availability, inspect incidents, and investigate failures.
-        </div>
+        </p>
       </div>
-      <button class="button" id="checkButton" onclick="checkGitHub()">
-        ↻ &nbsp; Check now
-      </button>
-    </header>
-
-    <section class="cards">
-      <div class="card">
-        <div class="card-label">Checks this session</div>
-        <div class="metric" id="checkedMetric">0</div>
-        <div class="hint">Completed health checks</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Latest service status</div>
-        <div class="metric green" id="healthyMetric">—</div>
-        <div class="hint">GitHub API availability</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Response time</div>
-        <div class="metric" id="responseMetric">—</div>
-        <div class="hint">Latest check in milliseconds</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Recorded checks</div>
-        <div class="metric" id="incidentMetric">—</div>
-        <div class="hint">Saved monitoring records</div>
-      </div>
-    </section>
-
-    <section class="panel" id="services">
-      <div class="panel-heading">
-        <h2>Monitored services</h2>
-        <span class="pill waiting" id="overallTag">Waiting for check</span>
-      </div>
-
-      <div class="service-row">
-        <div class="service-icon">GH</div>
-        <div class="service-info">
-          <div class="service-name">GitHub API</div>
-          <div class="service-url">https://api.github.com/</div>
-        </div>
-        <div class="service-right">
-          <div class="status" id="githubStatus">Not checked</div>
-          <div class="response" id="githubResponse">—</div>
-        </div>
-      </div>
-
-      <div class="service-row">
-        <div class="service-icon">PC</div>
-        <div class="service-info">
-          <div class="service-name">PulseCheck API</div>
-          <div class="service-url">Local application health</div>
-        </div>
-        <div class="service-right">
-          <div class="status green" id="pulseStatus">Checking…</div>
-          <div class="response">/health</div>
-        </div>
-      </div>
-
-      <div class="message" id="statusMessage">
-        Select Check now to run a live health check.
-      </div>
-    </section>
-
-    <section class="panel" id="incidents">
-      <div class="panel-heading">
-        <h2>Recent incidents and checks</h2>
-        <button class="button secondary small" onclick="loadIncidents()">
-          Refresh history
+      <div class="top-actions">
+        <span class="system-pill" id="overallStatus">
+          <span class="dot"></span> Checking status
+        </span>
+        <button class="button" id="checkButton">
+          <span aria-hidden="true">↻</span> Check now
         </button>
       </div>
+    </header>
+
+    <div id="notice" class="notice hidden" role="status"></div>
+
+    <section id="overviewView">
+      <div class="metrics" id="metrics">
+        <article class="metric">
+          <div class="metric-top">
+            <span>Checks this session</span>
+            <span class="metric-icon">↻</span>
+          </div>
+          <div class="metric-value" id="sessionChecks">0</div>
+          <div class="metric-caption">Health checks initiated in this session</div>
+        </article>
+
+        <article class="metric">
+          <div class="metric-top">
+            <span>Latest service status</span>
+            <span class="metric-icon">♡</span>
+          </div>
+          <div class="metric-value healthy" id="latestStatus">—</div>
+          <div class="metric-caption">Latest recorded GitHub API check</div>
+        </article>
+
+        <article class="metric">
+          <div class="metric-top">
+            <span>Response time</span>
+            <span class="metric-icon">◷</span>
+          </div>
+          <div class="metric-value" id="latestResponse">—</div>
+          <div class="metric-caption">Most recent response time in milliseconds</div>
+        </article>
+
+        <article class="metric">
+          <div class="metric-top">
+            <span>Recorded checks</span>
+            <span class="metric-icon">▤</span>
+          </div>
+          <div class="metric-value" id="recordedChecks">0</div>
+          <div class="metric-caption">Monitoring records in the incident database</div>
+        </article>
+      </div>
+
+      <div class="content-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Response time</h2>
+              <p class="panel-subtitle">Recent recorded health-check latency</p>
+            </div>
+            <span class="status-pill" id="chartCount">0 data points</span>
+          </div>
+
+          <div class="chart-wrap">
+            <svg id="responseChart" viewBox="0 0 600 190"
+                 role="img" aria-label="Chart of recorded API response times">
+              <text x="300" y="90" fill="#8fa8c9"
+                text-anchor="middle" font-size="13">
+                Waiting for monitoring data...
+              </text>
+            </svg>
+          </div>
+          <div class="chart-legend">
+            <span class="legend-item">
+              <span class="legend-dot"></span> Response time (ms)
+            </span>
+            <span class="legend-item">
+              <span class="legend-dot red"></span> Failed check
+            </span>
+          </div>
+        </section>
+
+        <section class="panel" id="servicesPanel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Monitored services</h2>
+              <p class="panel-subtitle">Services configured in this demo</p>
+            </div>
+          </div>
+          <div class="service-list" id="serviceList">
+            <div class="empty">Loading services...</div>
+          </div>
+          <div class="service-footnote">
+            GitHub API is checked on demand. PulseCheck health is checked when the dashboard loads.
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="panel incident-panel" id="incidentsPanel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Recent incidents &amp; checks</h2>
+          <p class="panel-subtitle">Results retrieved from your local SQLite database</p>
+        </div>
+        <div class="table-toolbar">
+          <input class="search" id="incidentSearch"
+                 type="search" placeholder="Search service or status..."
+                 aria-label="Search incident history">
+          <button class="button secondary small" id="refreshButton">↻ Refresh</button>
+        </div>
+      </div>
+
       <div class="table-wrap">
         <table>
           <thead>
@@ -396,234 +816,550 @@
               <th>Service</th>
               <th>Status</th>
               <th>HTTP</th>
-              <th>Response</th>
+              <th>Response time</th>
               <th>Checked at</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody id="incidentRows">
-            <tr><td colspan="6" class="empty">Loading history…</td></tr>
+            <tr><td colspan="6" class="empty">Loading incident history...</td></tr>
           </tbody>
         </table>
       </div>
-      <div class="message" id="incidentMessage"></div>
     </section>
 
-    <section class="panel analysis-panel" id="analysisPanel">
-      <div class="panel-heading">
-        <h2>✦ AI incident investigation</h2>
-        <button class="button secondary small"
-                onclick="closeAnalysis()">Close</button>
+    <section class="panel investigation" id="investigationsPanel">
+      <div class="panel-header">
+        <div class="investigation-heading">
+          <div class="ai-icon" aria-hidden="true">✳</div>
+          <div>
+            <h2 class="panel-title">Incident investigation</h2>
+            <p class="panel-subtitle">
+              Get troubleshooting guidance for a selected monitoring result.
+            </p>
+          </div>
+        </div>
+        <button class="button" id="analyzeLatestButton">✳ Analyze latest check</button>
       </div>
-      <div class="subtitle" id="analysisSubtitle">
-        Suggested causes and next steps.
-      </div>
-      <div class="analysis-content" id="analysisContent"></div>
+
+      <div class="analysis-output" id="analysisOutput" aria-live="polite"></div>
+      <p class="panel-subtitle">
+        AI analysis may be unavailable due to provider timeouts or service limits.
+        Rule-based fallback guidance is not AI-generated and does not confirm root cause.
+      </p>
     </section>
 
-    <div class="footer">
-      PulseCheck · API health monitoring and AI-assisted incident analysis
-    </div>
+    <footer class="footer">
+      <span>PulseCheck · API health monitoring</span>
+      <span id="lastUpdated">Waiting for initial data...</span>
+    </footer>
   </main>
 </div>
 
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
 <script>
-  let checksThisSession = 0;
-  let latestCheck = null;
+(() => {
+  "use strict";
 
   const $ = (id) => document.getElementById(id);
 
-  function setPill(text, state) {
-    const pill = $("overallTag");
-    pill.textContent = text;
-    pill.className = "pill" +
-      (state === "up" ? "" : state === "down" ? " down" : " waiting");
+  const state = {
+    incidents: [],
+    latest: null,
+    sessionChecks: 0,
+    pulseCheckHealthy: null,
+    toastTimer: null
+  };
+
+  const viewContent = {
+    overview: {
+      title: "Monitoring overview",
+      subtitle: "Track API availability, inspect incidents, and investigate failures."
+    },
+    services: {
+      title: "Monitored services",
+      subtitle: "Review the services and their most recent health-check results."
+    },
+    incidents: {
+      title: "Incident history",
+      subtitle: "Search recorded checks and investigate errors."
+    },
+    investigations: {
+      title: "Incident investigations",
+      subtitle: "Explore possible causes and practical troubleshooting steps."
+    }
+  };
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[char]);
   }
 
-  async function readJson(response) {
-    let data;
-    try {
-      data = await response.json();
-    } catch {
-      throw new Error("The server returned an unreadable response.");
-    }
-    if (!response.ok) {
-      throw new Error(data.detail || `Request failed (${response.status})`);
-    }
-    return data;
+  function isUp(incident) {
+    return String(incident?.status ?? "").toLowerCase() === "up";
   }
 
-  async function checkPulseCheck() {
-    try {
-      const response = await fetch("/health");
-      const data = await readJson(response);
-      $("pulseStatus").textContent =
-        data.status === "healthy" ? "Available" : "Unhealthy";
-      $("pulseStatus").className =
-        "status " + (data.status === "healthy" ? "green" : "red");
-    } catch {
-      $("pulseStatus").textContent = "Unavailable";
-      $("pulseStatus").className = "status red";
-    }
+  function formatTime(value) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString();
   }
 
-  async function checkGitHub() {
-    const button = $("checkButton");
-    button.disabled = true;
-    button.textContent = "Checking…";
-    $("statusMessage").textContent =
-      "Contacting GitHub API and saving the result…";
-    setPill("Check in progress", "waiting");
+  function formatDuration(value) {
+    if (value === null || value === undefined || value === "") return "—";
+    const number = Number(value);
+    return Number.isFinite(number) ? `${number.toFixed(2)} ms` : "—";
+  }
 
-    try {
-      const response = await fetch("/dashboard-check", {
-        method: "POST"
-      });
-      const data = await readJson(response);
-      latestCheck = data;
-      checksThisSession += 1;
+  function statusBadge(incident) {
+    if (isUp(incident)) {
+      return '<span class="badge up"><span>●</span> Healthy</span>';
+    }
+    if (String(incident?.status ?? "").toLowerCase() === "down") {
+      return '<span class="badge down"><span>●</span> Down</span>';
+    }
+    return '<span class="badge unknown">Unknown</span>';
+  }
 
-      $("checkedMetric").textContent = checksThisSession;
-      $("healthyMetric").textContent =
-        data.status === "up" ? "Healthy" : "Down";
-      $("healthyMetric").className =
-        "metric " + (data.status === "up" ? "green" : "red");
-      $("responseMetric").textContent = `${data.response_time_ms} ms`;
+  function showToast(message) {
+    const toast = $("toast");
+    toast.textContent = message;
+    clearTimeout(state.toastTimer);
+    state.toastTimer = setTimeout(() => {
+      toast.textContent = "";
+    }, 4500);
+  }
 
-      $("githubStatus").textContent =
-        data.status === "up" ? "Healthy" : "Unhealthy";
-      $("githubStatus").className =
-        "status " + (data.status === "up" ? "green" : "red");
-      $("githubResponse").textContent =
-        `${data.response_time_ms} ms`;
-
-      setPill(
-        data.status === "up" ? "Service operational" : "Incident detected",
-        data.status
-      );
-
-      $("statusMessage").textContent =
-        `Last checked ${new Date(data.checked_at).toLocaleString()}. ` +
-        (data.error || "The result was saved to the incident database.");
-
-      await loadIncidents();
-    } catch (error) {
-      $("statusMessage").textContent = `Check failed: ${error.message}`;
-      setPill("Check failed", "down");
-    } finally {
+  function setBusy(button, busy, busyLabel) {
+    if (busy) {
+      button.dataset.originalLabel = button.innerHTML;
+      button.disabled = true;
+      button.textContent = busyLabel || "Working...";
+    } else {
       button.disabled = false;
-      button.innerHTML = "↻ &nbsp; Check now";
+      if (button.dataset.originalLabel) {
+        button.innerHTML = button.dataset.originalLabel;
+        delete button.dataset.originalLabel;
+      }
+    }
+  }
+
+  async function apiFetch(url, options = {}) {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        "Accept": "application/json",
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...options.headers
+      }
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+    let payload = null;
+
+    if (contentType.includes("application/json")) {
+      payload = await response.json();
+    } else {
+      payload = await response.text();
+    }
+
+    if (!response.ok) {
+      const message = payload && typeof payload === "object"
+        ? (payload.detail || payload.message || `HTTP ${response.status}`)
+        : `HTTP ${response.status}`;
+      throw new Error(String(message));
+    }
+
+    return payload;
+  }
+
+  async function loadPulseCheckHealth() {
+    try {
+      const data = await apiFetch("/health");
+      state.pulseCheckHealthy = data.status === "healthy";
+    } catch {
+      state.pulseCheckHealthy = false;
     }
   }
 
   async function loadIncidents() {
-    const rows = $("incidentRows");
-    $("incidentMessage").textContent = "";
-
     try {
-      const response = await fetch("/dashboard-data");
-      const data = await readJson(response);
-      const incidents = data.incidents || [];
-
-      $("incidentMetric").textContent = incidents.length;
-
-      if (!incidents.length) {
-        rows.innerHTML =
-          '<tr><td colspan="6" class="empty">No checks recorded yet. Run Check now to begin.</td></tr>';
-        return;
+      const data = await apiFetch("/dashboard-data");
+      if (!data || !Array.isArray(data.incidents)) {
+        throw new Error("Unexpected incident-history response.");
       }
 
-      rows.replaceChildren();
+      state.incidents = data.incidents;
+      state.latest = state.incidents.length ? state.incidents[0] : null;
 
-      incidents.forEach((incident) => {
-        const row = document.createElement("tr");
-        const status = String(incident.status || "unknown");
-        const values = [
-          incident.service_name || "Unknown service",
-          status,
-          incident.http_status ?? "—",
-          incident.response_time_ms == null
-            ? "—"
-            : `${incident.response_time_ms} ms`,
-          incident.checked_at
-            ? new Date(incident.checked_at).toLocaleString()
-            : "—"
-        ];
+      renderAll();
 
-        values.forEach((value, index) => {
-          const cell = document.createElement("td");
-          cell.textContent = value;
-          if (index === 1) {
-            const normalized = String(value).toLowerCase();
-            cell.className =
-              normalized === "up" || normalized === "healthy"
-                ? "green"
-                : normalized === "down" || normalized === "unhealthy"
-                  ? "red" : "";
-          }
-          row.appendChild(cell);
-        });
+      $("connectionText").textContent = "Dashboard connected";
+      $("connectionDescription").textContent =
+        "Local dashboard API is responding.";
+      $("notice").classList.add("hidden");
 
-        const actionCell = document.createElement("td");
-        const analyzeButton = document.createElement("button");
-        analyzeButton.className = "button secondary small";
-        analyzeButton.textContent = "Analyze";
-        analyzeButton.addEventListener("click", () => analyzeIncident({
+      $("lastUpdated").textContent =
+        `Last refreshed ${new Date().toLocaleTimeString()}`;
+
+      return true;
+    } catch (error) {
+      $("connectionText").textContent = "Connection issue";
+      $("connectionDescription").textContent =
+        "Unable to load local dashboard data.";
+
+      $("notice").textContent =
+        `Could not load dashboard data: ${error.message}. ` +
+        "Confirm the FastAPI server is running and PULSECHECK_DASHBOARD_ENABLED=true is set in your local .env.";
+      $("notice").classList.remove("hidden");
+
+      $("incidentRows").innerHTML =
+        `<tr><td colspan="6" class="empty">${escapeHtml(error.message)}</td></tr>`;
+
+      showToast("Could not load monitoring data.");
+      return false;
+    }
+  }
+
+  function renderMetrics() {
+    const latest = state.latest;
+    $("sessionChecks").textContent = state.sessionChecks;
+    $("recordedChecks").textContent = state.incidents.length;
+
+    const statusElement = $("latestStatus");
+    statusElement.classList.remove("healthy", "down");
+
+    if (!latest) {
+      statusElement.textContent = "No data";
+      $("latestResponse").textContent = "—";
+      $("overallStatus").innerHTML = '<span class="dot"></span> Awaiting first check';
+      return;
+    }
+
+    statusElement.textContent = isUp(latest) ? "Healthy" : "Down";
+    statusElement.classList.add(isUp(latest) ? "healthy" : "down");
+
+    $("latestResponse").textContent = formatDuration(latest.response_time_ms);
+
+    $("overallStatus").innerHTML = isUp(latest)
+      ? '<span class="dot"></span> Latest check healthy'
+      : '<span class="dot" style="background:var(--red);box-shadow:none"></span> Latest check failed';
+  }
+
+  function renderServices() {
+    const latest = state.latest;
+    const githubUp = latest ? isUp(latest) : null;
+    const pulseUp = state.pulseCheckHealthy;
+
+    const githubStatus = githubUp === null ? "No data" : githubUp ? "Healthy" : "Down";
+    const pulseStatus = pulseUp === null ? "Checking" : pulseUp ? "Available" : "Unreachable";
+
+    $("serviceList").innerHTML = `
+      <div class="service">
+        <div class="service-logo" aria-hidden="true">GH</div>
+        <div class="service-info">
+          <div class="service-name">GitHub API</div>
+          <div class="service-url">https://api.github.com/</div>
+        </div>
+        <div class="service-status">
+          <div class="status-text ${githubUp === null ? "" : githubUp ? "up" : "down"}">
+            ${githubStatus}
+          </div>
+          <div class="service-time">${latest ? escapeHtml(formatDuration(latest.response_time_ms)) : "Not checked"}</div>
+        </div>
+      </div>
+      <div class="service">
+        <div class="service-logo" aria-hidden="true">PC</div>
+        <div class="service-info">
+          <div class="service-name">PulseCheck API</div>
+          <div class="service-url">Local application health · /health</div>
+        </div>
+        <div class="service-status">
+          <div class="status-text ${pulseUp === null ? "" : pulseUp ? "up" : "down"}">
+            ${pulseStatus}
+          </div>
+          <div class="service-time">Health endpoint</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderChart() {
+    const svg = $("responseChart");
+    const records = [...state.incidents]
+      .filter(item => Number.isFinite(Number(item.response_time_ms)))
+      .slice(0, 20)
+      .reverse();
+
+    $("chartCount").textContent = `${records.length} data point${records.length === 1 ? "" : "s"}`;
+
+    if (!records.length) {
+      svg.innerHTML = `
+        <text x="300" y="90" fill="#8fa8c9" text-anchor="middle" font-size="13">
+          Run a health check to start your chart
+        </text>`;
+      return;
+    }
+
+    const width = 600;
+    const height = 190;
+    const left = 44;
+    const right = 12;
+    const top = 15;
+    const bottom = 30;
+    const chartWidth = width - left - right;
+    const chartHeight = height - top - bottom;
+
+    const values = records.map(item => Math.max(0, Number(item.response_time_ms)));
+    const maxValue = Math.max(...values, 1) * 1.15;
+    const x = i => left + (records.length === 1 ? chartWidth / 2 : i * chartWidth / (records.length - 1));
+    const y = value => top + chartHeight - (value / maxValue) * chartHeight;
+
+    let html = "";
+
+    for (let i = 0; i <= 3; i++) {
+      const val = maxValue * i / 3;
+      const yy = y(val);
+
+      html += `
+        <line x1="${left}" y1="${yy}" x2="${width - right}" y2="${yy}"
+          stroke="#243650" stroke-width="1" stroke-dasharray="4 5"/>
+        <text x="${left - 8}" y="${yy + 4}" fill="#829cbe"
+          text-anchor="end" font-size="10">${val.toFixed(0)}</text>`;
+    }
+
+    const points = values.map((value, i) => `${x(i)},${y(value)}`).join(" ");
+    const areaPoints = `${x(0)},${top + chartHeight} ${points} ${x(values.length - 1)},${top + chartHeight}`;
+
+    html += `
+      <defs>
+        <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#60a5fa" stop-opacity=".25"/>
+          <stop offset="100%" stop-color="#60a5fa" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <polygon points="${areaPoints}" fill="url(#chartFill)"/>
+      <polyline points="${points}" fill="none" stroke="#60a5fa"
+        stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+    records.forEach((item, i) => {
+      const failed = !isUp(item);
+      html += `
+        <circle cx="${x(i)}" cy="${y(values[i])}" r="4"
+          fill="${failed ? "#fb7185" : "#60a5fa"}"
+          stroke="#101d32" stroke-width="2">
+          <title>${escapeHtml(item.service_name || "Service")} · ${values[i].toFixed(2)} ms · ${escapeHtml(item.status || "unknown")}</title>
+        </circle>`;
+    });
+
+    const firstTime = records[0]?.checked_at;
+    const lastTime = records[records.length - 1]?.checked_at;
+
+    html += `
+      <text x="${left}" y="${height - 5}" fill="#829cbe" font-size="10">
+        ${escapeHtml(firstTime ? new Date(firstTime).toLocaleTimeString() : "")}
+      </text>
+      <text x="${width - right}" y="${height - 5}" fill="#829cbe"
+        text-anchor="end" font-size="10">
+        ${escapeHtml(lastTime ? new Date(lastTime).toLocaleTimeString() : "")}
+      </text>`;
+
+    svg.innerHTML = html;
+  }
+
+  function renderIncidents() {
+    const query = $("incidentSearch").value.trim().toLowerCase();
+
+    const filtered = state.incidents.filter(item => {
+      const searchable = [
+        item.service_name, item.status, item.http_status, item.error_message
+      ].join(" ").toLowerCase();
+
+      return searchable.includes(query);
+    });
+
+    if (!filtered.length) {
+      $("incidentRows").innerHTML = `
+        <tr><td colspan="6" class="empty">
+          ${state.incidents.length
+            ? "No records match your search."
+            : "No recorded checks yet. Select Check now to start monitoring."}
+        </td></tr>`;
+      return;
+    }
+
+    $("incidentRows").innerHTML = filtered.map((item, index) => {
+      const originalIndex = state.incidents.indexOf(item);
+      return `
+        <tr>
+          <td><strong>${escapeHtml(item.service_name || "Unknown service")}</strong></td>
+          <td>${statusBadge(item)}</td>
+          <td>${item.http_status == null ? "—" : escapeHtml(item.http_status)}</td>
+          <td>${escapeHtml(formatDuration(item.response_time_ms))}</td>
+          <td>${escapeHtml(formatTime(item.checked_at))}</td>
+          <td>
+            <button class="link-button" data-analyze-index="${originalIndex}">
+              Investigate ↗
+            </button>
+          </td>
+        </tr>`;
+    }).join("");
+  }
+
+  function renderAll() {
+    renderMetrics();
+    renderServices();
+    renderChart();
+    renderIncidents();
+  }
+
+  async function runHealthCheck() {
+    const button = $("checkButton");
+    setBusy(button, true, "Checking...");
+
+    try {
+      const result = await apiFetch("/dashboard-check", { method: "POST" });
+      state.sessionChecks += 1;
+      await loadPulseCheckHealth();
+      await loadIncidents();
+
+      if (String(result.status).toLowerCase() === "up") {
+        showToast(`GitHub API is healthy · ${formatDuration(result.response_time_ms)}`);
+      } else {
+        showToast(`Health check reported a problem: ${result.error || "Service is down"}`);
+      }
+    } catch (error) {
+      showToast(`Health check failed: ${error.message}`);
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
+  async function analyzeIncident(incident) {
+    if (!incident) {
+      showToast("Run a health check before requesting an investigation.");
+      return;
+    }
+
+    const button = $("analyzeLatestButton");
+    setBusy(button, true, "Analyzing...");
+
+    $("analysisOutput").textContent =
+      "Preparing incident details and requesting troubleshooting guidance...";
+
+    $("investigationsPanel").scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+
+    try {
+      const result = await apiFetch("/dashboard-analyze", {
+        method: "POST",
+        body: JSON.stringify({
           service_name: incident.service_name || "Unknown service",
           status: incident.status || "unknown",
           http_status: incident.http_status ?? null,
           response_time_ms: incident.response_time_ms ?? null,
           error_message: incident.error_message ?? null
-        }));
-
-        actionCell.appendChild(analyzeButton);
-        row.appendChild(actionCell);
-        rows.appendChild(row);
+        })
       });
+
+      const analysis = result && result.analysis != null
+        ? String(result.analysis)
+        : "The server returned no analysis.";
+
+      $("analysisOutput").textContent = analysis;
+      showToast("Investigation response received.");
     } catch (error) {
-      rows.innerHTML =
-        '<tr><td colspan="6" class="empty">Could not load check history.</td></tr>';
-      $("incidentMessage").textContent = error.message;
+      $("analysisOutput").textContent =
+        `Investigation request failed: ${error.message}\n\n` +
+        "Check the local server terminal for details. If Gemini is unavailable, " +
+        "the backend may return rule-based fallback guidance.";
+      showToast("Could not complete the investigation request.");
+    } finally {
+      setBusy(button, false);
     }
   }
 
-  async function analyzeIncident(incident) {
-    const panel = $("analysisPanel");
-    const content = $("analysisContent");
+  function switchView(view) {
+    const selected = viewContent[view] ? view : "overview";
 
-    panel.classList.add("visible");
-    panel.scrollIntoView({ behavior: "smooth", block: "start" });
-    $("analysisSubtitle").textContent =
-      `${incident.service_name} · Status: ${incident.status}`;
-    content.className = "analysis-content analysis-loading";
-    content.textContent = "Analyzing incident with Gemini…";
+    document.querySelectorAll(".nav-item").forEach(button => {
+      button.classList.toggle("active", button.dataset.view === selected);
+    });
 
-    try {
-      const response = await fetch("/dashboard-analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(incident)
-      });
+    $("pageTitle").textContent = viewContent[selected].title;
+    $("pageSubtitle").textContent = viewContent[selected].subtitle;
 
-      const data = await readJson(response);
-      content.className = "analysis-content";
-      content.textContent = typeof data.analysis === "string"
-        ? data.analysis
-        : JSON.stringify(data.analysis, null, 2);
-    } catch (error) {
-      content.className = "analysis-content";
-      content.textContent =
-        `Analysis failed: ${error.message}\n\n` +
-        "Check that GEMINI_API_KEY is configured and review the local server logs.";
+    $("overviewView").classList.toggle("hidden", selected !== "overview");
+    $("incidentsPanel").classList.toggle("hidden",
+      selected !== "overview" && selected !== "incidents");
+    $("investigationsPanel").classList.toggle("hidden",
+      selected !== "overview" && selected !== "investigations");
+
+    if (selected === "services") {
+      $("overviewView").classList.remove("hidden");
+      $("metrics").classList.add("hidden");
+      $("servicesPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      $("metrics")?.classList.remove("hidden");
+      if (selected === "incidents") {
+        $("incidentsPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      if (selected === "investigations") {
+        $("investigationsPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      if (selected === "overview") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }
+
+    if (selected === "services") {
+      $("incidentsPanel").classList.add("hidden");
+      $("investigationsPanel").classList.add("hidden");
     }
   }
 
-  function closeAnalysis() {
-    $("analysisPanel").classList.remove("visible");
-  }
+  document.querySelectorAll(".nav-item").forEach(button => {
+    button.addEventListener("click", () => switchView(button.dataset.view));
+  });
 
-  checkPulseCheck();
-  loadIncidents();
+  $("checkButton").addEventListener("click", runHealthCheck);
+
+  $("refreshButton").addEventListener("click", async () => {
+    await loadPulseCheckHealth();
+    const success = await loadIncidents();
+    if (success) showToast("Dashboard data refreshed.");
+  });
+
+  $("incidentSearch").addEventListener("input", renderIncidents);
+
+  $("incidentRows").addEventListener("click", event => {
+    const button = event.target.closest("[data-analyze-index]");
+    if (!button) return;
+
+    const index = Number(button.dataset.analyzeIndex);
+    const incident = state.incidents[index];
+    if (incident) analyzeIncident(incident);
+  });
+
+  $("analyzeLatestButton").addEventListener("click", () => {
+    analyzeIncident(state.latest);
+  });
+
+  // Initial load: health and incident history are independent requests.
+  (async () => {
+    await loadPulseCheckHealth();
+    await loadIncidents();
+  })();
+})();
 </script>
 </body>
 </html>
