@@ -3,13 +3,15 @@ import os
 import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 from time import perf_counter
 
 import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
-from pydantic import BaseModel
+from fastapi.responses import FileResponse
 from mangum import Mangum
+from pydantic import BaseModel
 
 from app.ai_analysis import analyze_incident
 from app.database import (
@@ -18,25 +20,40 @@ from app.database import (
     save_incident,
 )
 
-# Load local configuration. On Lambda, use environment variables.
 load_dotenv()
+
+BASE_DIR = Path(__file__).resolve().parent
 
 
 def verify_api_key(x_api_key: str | None):
-    expected_api_key = os.getenv("PULSECHECK_API_KEY")
+    expected = os.getenv("PULSECHECK_API_KEY")
 
-    if not expected_api_key:
+    if not expected:
         raise HTTPException(
             status_code=503,
             detail="API authentication is not configured.",
         )
 
     if not x_api_key or not secrets.compare_digest(
-        x_api_key, expected_api_key
+        x_api_key, expected
     ):
         raise HTTPException(
             status_code=401,
             detail="Invalid or missing API key.",
+        )
+
+
+def require_local_dashboard():
+    # Dashboard action routes are for local development only.
+    # They must not become public AWS endpoints accidentally.
+    if (
+        os.getenv("AWS_LAMBDA_FUNCTION_NAME")
+        or os.getenv("PULSECHECK_DASHBOARD_ENABLED", "").lower()
+        != "true"
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail="Dashboard actions are disabled.",
         )
 
 
@@ -48,18 +65,23 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="PulseCheck",
-    description="Check API health and investigate failures.",
+    description="API health monitoring and incident analysis.",
     version="1.0.0",
     lifespan=lifespan,
 )
 
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def home():
     return {
         "message": "PulseCheck is running",
         "status": "healthy",
     }
+
+
+@app.get("/dashboard", include_in_schema=False)
+def dashboard():
+    return FileResponse(BASE_DIR / "static" / "index.html")
 
 
 @app.get("/health")
@@ -70,12 +92,7 @@ def health_check():
     }
 
 
-@app.get("/monitor/github")
-def check_github(
-    x_api_key: str | None = Header(default=None),
-):
-    verify_api_key(x_api_key)
-
+def perform_github_check():
     target_url = "https://api.github.com/"
     started_at = perf_counter()
     http_status = None
@@ -86,7 +103,7 @@ def check_github(
         http_status = response.status_code
         status = "up" if response.ok else "down"
 
-        if status == "down":
+        if not response.ok:
             error_message = f"GitHub returned HTTP {http_status}"
 
     except requests.RequestException as error:
@@ -118,15 +135,44 @@ def check_github(
     }
 
 
+@app.get("/monitor/github")
+def check_github(
+    x_api_key: str | None = Header(default=None),
+):
+    verify_api_key(x_api_key)
+    return perform_github_check()
+
+
 @app.get("/incidents")
 def incident_history(
     x_api_key: str | None = Header(default=None),
 ):
     verify_api_key(x_api_key)
+    return {"incidents": get_recent_incidents()}
+
+
+@app.get("/dashboard-data", include_in_schema=False)
+def dashboard_data():
+    require_local_dashboard()
+
+    incidents = get_recent_incidents()
 
     return {
-        "incidents": get_recent_incidents(),
+        "incidents": [dict(item) for item in incidents]
     }
+
+
+@app.post("/dashboard-check", include_in_schema=False)
+def dashboard_check():
+    require_local_dashboard()
+
+    if not os.getenv("PULSECHECK_API_KEY"):
+        raise HTTPException(
+            status_code=503,
+            detail="Set PULSECHECK_API_KEY in your local .env file.",
+        )
+
+    return perform_github_check()
 
 
 class IncidentForAnalysis(BaseModel):
@@ -137,19 +183,21 @@ class IncidentForAnalysis(BaseModel):
     error_message: str | None = None
 
 
-@app.post("/analyze-incident")
-def analyze_incident_endpoint(
-    incident: IncidentForAnalysis,
-    x_api_key: str | None = Header(default=None),
-):
-    verify_api_key(x_api_key)
+@app.post("/dashboard-analyze", include_in_schema=False)
+def dashboard_analyze(incident: IncidentForAnalysis):
+    require_local_dashboard()
+
+    if not os.getenv("GEMINI_API_KEY"):
+        raise HTTPException(
+            status_code=503,
+            detail="Set GEMINI_API_KEY in your local .env file.",
+        )
 
     try:
-        analysis = analyze_incident(incident)
-
+        result = analyze_incident(incident)
         return {
             "service": incident.service_name,
-            "analysis": analysis,
+            "analysis": result,
         }
 
     except ValueError as error:
@@ -159,9 +207,35 @@ def analyze_incident_endpoint(
         ) from error
 
     except Exception as error:
-        # Keep provider details in server logs, not the API response.
-        print(f"Incident analysis failed: {error}")
+        print(f"Dashboard AI analysis failed: {error}")
+        raise HTTPException(
+            status_code=502,
+            detail="AI analysis failed. Check the local server logs.",
+        ) from error
 
+
+@app.post("/analyze-incident")
+def analyze_incident_endpoint(
+    incident: IncidentForAnalysis,
+    x_api_key: str | None = Header(default=None),
+):
+    verify_api_key(x_api_key)
+
+    try:
+        result = analyze_incident(incident)
+        return {
+            "service": incident.service_name,
+            "analysis": result,
+        }
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=503,
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        print(f"Incident analysis failed: {error}")
         raise HTTPException(
             status_code=502,
             detail="AI analysis failed. Check the server logs.",
