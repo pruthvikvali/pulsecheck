@@ -1,9 +1,13 @@
 
+import os
 import sqlite3
 from pathlib import Path
 
 
-DATABASE_PATH = Path(__file__).resolve().parent.parent / "pulsecheck.db"
+if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+    DATABASE_PATH = Path("/tmp/pulsecheck.db")
+else:
+    DATABASE_PATH = Path(__file__).resolve().parent.parent / "pulsecheck.db"
 
 
 def get_connection():
